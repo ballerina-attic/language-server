@@ -30,6 +30,8 @@ import org.wso2.ballerinalang.compiler.util.diagnotic.DiagnosticPos;
 import java.util.List;
 import java.util.Map;
 
+import static org.ballerinalang.langserver.TextDocumentServiceUtil.toZeroBasedPosition;
+
 /**
  * Service scope position resolver.
  */
@@ -38,7 +40,7 @@ public class ServiceScopeResolver extends CursorPositionResolver {
     public boolean isCursorBeforeNode(DiagnosticPos nodePosition, Node node, TreeVisitor treeVisitor,
                                       TextDocumentServiceContext completionContext) {
         Position position = completionContext.get(DocumentServiceKeys.POSITION_KEY).getPosition();
-        DiagnosticPos zeroBasedPo = this.toZeroBasedPosition(nodePosition);
+        DiagnosticPos zeroBasedPo = toZeroBasedPosition(nodePosition);
         int line = position.getLine();
         int col = position.getCharacter();
         int nodeSLine = zeroBasedPo.sLine;
