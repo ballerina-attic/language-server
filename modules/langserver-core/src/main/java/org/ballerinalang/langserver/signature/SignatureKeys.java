@@ -41,4 +41,6 @@ class SignatureKeys {
             = new LanguageServerContext.Key<>();
     static final LanguageServerContext.Key<String> IDENTIFIER_TYPE
             = new LanguageServerContext.Key<>();
+    static final LanguageServerContext.Key<String> IDENTIFIER_PKGID
+            = new LanguageServerContext.Key<>();
 }

@@ -31,6 +31,7 @@ import org.wso2.ballerinalang.compiler.semantics.model.SymbolEnv;
 import org.wso2.ballerinalang.compiler.semantics.model.SymbolTable;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BInvokableSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BOperatorSymbol;
+import org.wso2.ballerinalang.compiler.semantics.model.symbols.BPackageSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.BVarSymbol;
 import org.wso2.ballerinalang.compiler.semantics.model.symbols.Symbols;
@@ -117,6 +118,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
+import java.util.stream.Collectors;
 
 /**
  * Tree visitor to traverse through the ballerina node tree and find the scope of a given cursor position.
@@ -761,6 +763,10 @@ public class SignatureTreeVisitor extends BLangNodeVisitor {
                 visibleSymbols.add(symbolInfo);
             } else if (v.symbol instanceof BVarSymbol && k.getValue().equals(identifierAgainst)) {
                 documentServiceContext.put(SignatureKeys.IDENTIFIER_TYPE, v.symbol.type.toString());
+            } else if (v.symbol instanceof BPackageSymbol && k.getValue().equals(identifierAgainst)) {
+                documentServiceContext.put(SignatureKeys.IDENTIFIER_PKGID, v.symbol.pkgID.toString());
+                documentServiceContext.put(SignatureKeys.IDENTIFIER_TYPE, v.symbol.type.toString());
+                visibleSymbols.addAll(this.getInvokableSymbolsInPackage((BPackageSymbol) v.symbol));
             }
         });
         
@@ -773,16 +779,32 @@ public class SignatureTreeVisitor extends BLangNodeVisitor {
         visibleSymbols.forEach(symbolInfo -> {
             BVarSymbol receiver = ((BInvokableSymbol) symbolInfo.getScopeEntry().symbol).receiverSymbol;
             String[] nameTokens = symbolInfo.getSymbolName().split("\\.");
+            String funcNameFromSymbol = nameTokens[nameTokens.length - 1];
             String functionName = documentServiceContext.get(SignatureKeys.CALLABLE_ITEM_NAME);
-            if ((receiver != null &&
-                    receiver.type.toString().equals(documentServiceContext.get(SignatureKeys.IDENTIFIER_TYPE))
-                    && nameTokens[1].equals(functionName))
-                    || (receiver == null && (identifierAgainst == null || identifierAgainst.equals(""))
-                    && nameTokens[0].equals(functionName))) {
+            String identifierPkgName = documentServiceContext.get(SignatureKeys.IDENTIFIER_PKGID);
+            boolean onIdentifierTypePkg = "package".equals(documentServiceContext.get(SignatureKeys.IDENTIFIER_TYPE))
+                    && symbolInfo.getScopeEntry().symbol.pkgID.toString().equals(identifierPkgName);
+            boolean onReceiverTypeMatchIdentifier = receiver != null &&
+                    receiver.type.toString().equals(documentServiceContext.get(SignatureKeys.IDENTIFIER_TYPE));
+            boolean onIdentifierAgainstNull = (receiver == null
+                    && (identifierAgainst == null || identifierAgainst.equals("")));
+            
+            if ((onIdentifierTypePkg || onReceiverTypeMatchIdentifier || onIdentifierAgainstNull)
+                    && funcNameFromSymbol.equals(functionName)) {
                 filteredSymbols.add(symbolInfo);
             }
         });
-
+    
         documentServiceContext.put(SignatureKeys.FILTERED_FUNCTIONS, filteredSymbols);
+    }
+    
+    private List<SymbolInfo> getInvokableSymbolsInPackage(BPackageSymbol packageSymbol) {
+        Map<Name, Scope.ScopeEntry> scopeEntries = packageSymbol.scope.entries;
+        
+        List<Scope.ScopeEntry> entriesList = scopeEntries.values().stream().collect(Collectors.toList());
+        return entriesList.stream()
+                .filter(scopeEntry -> scopeEntry.symbol instanceof BInvokableSymbol)
+                .map(scopeEntry -> new SymbolInfo(scopeEntry.symbol.name.getValue(), scopeEntry))
+                .collect(Collectors.toList());
     }
 }

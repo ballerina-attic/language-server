@@ -248,7 +248,8 @@ public class SignatureHelpUtil {
                                                  TextDocumentServiceContext signatureContext) {
         int counter = startPosition;
         String identifier = "";
-        if (".".equals(line.charAt(counter) + "")) {
+        if (".".equals(Character.toString(line.charAt(counter)))
+                || ":".equals(Character.toString(line.charAt(counter)))) {
             counter--;
             while (true) {
                 if (counter < 0) {
