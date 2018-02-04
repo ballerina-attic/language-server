@@ -61,6 +61,7 @@ public class SignatureHelpUtil {
                                                  TextDocumentServiceContext serviceContext) {
         int lineNumber = position.getLine();
         int character = position.getCharacter();
+        int paramCounter = 0;
         // Here add offset of 2 since the indexing is zero based
         String[] lineTokens = fileContent.split("\\r?\\n", lineNumber + 2);
         String line = lineTokens[lineNumber];
@@ -73,17 +74,22 @@ public class SignatureHelpUtil {
                 break;
             }
             String currentToken = Character.toString(line.charAt(backTrackPosition));
-            if (CLOSE_BRACKET.equals(currentToken)) {
+            if (COMMA.equals(currentToken)) {
+                paramCounter++;
+            } else if (CLOSE_BRACKET.equals(currentToken)) {
                 closeBracketStack.push(CLOSE_BRACKET);
             } else if (OPEN_BRACKET.equals(currentToken)) {
                 if (!closeBracketStack.isEmpty()) {
                     closeBracketStack.pop();
+                    paramCounter = 0;
                 } else {
                     setItemInfo(line, backTrackPosition - 1, serviceContext);
                 }
             }
             backTrackPosition--;
         }
+        
+        serviceContext.put(SignatureKeys.PARAMETER_COUNT, paramCounter);
     }
 
     /**
@@ -104,7 +110,7 @@ public class SignatureHelpUtil {
 
         SignatureHelp signatureHelp = new SignatureHelp();
         signatureHelp.setSignatures(signatureInformationList);
-        signatureHelp.setActiveParameter(0);
+        signatureHelp.setActiveParameter(context.get(SignatureKeys.PARAMETER_COUNT));
         signatureHelp.setActiveSignature(0);
 
         return signatureHelp;
@@ -133,7 +139,6 @@ public class SignatureHelpUtil {
 
             return parameterInfoModel.toString();
         }).collect(Collectors.joining(", "));
-
         signatureInformation.setLabel(functionName + "(" + paramsJoined + ")");
         signatureInformation.setParameters(parameterInformationList);
 
